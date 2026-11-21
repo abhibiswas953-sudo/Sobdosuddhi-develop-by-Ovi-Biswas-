@@ -1,0 +1,205 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Hardened helper primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidTimestamp(ts) {
+      return ts is timestamp && ts <= request.time;
+    }
+
+    // Validation blueprint: Manuscript
+    function isValidManuscript(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() <= 300000 &&
+             data.originalContent is string && data.originalContent.size() <= 300000 &&
+             data.category is string && data.category in ['GENERAL', 'POETRY', 'STORY', 'NOVEL', 'MANUSCRIPT'] &&
+             data.writingStyle is string && data.writingStyle in ['CHOLITO', 'SADHU', 'POETIC'] &&
+             data.preferredMeter is string && data.preferredMeter in ['AUTO', 'AKSHARBRITTO', 'MATRABRITTO', 'SWARABRITTO'] &&
+             data.expectedMatra is int && data.expectedMatra >= 0 && data.expectedMatra <= 64 &&
+             data.wordCount is int && data.wordCount >= 0 && data.wordCount <= 500000 &&
+             data.charCount is int && data.charCount >= 0 && data.charCount <= 3000000 &&
+             data.paragraphCount is int && data.paragraphCount >= 0 && data.paragraphCount <= 100000 &&
+             data.pinned is bool &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    // Validation blueprint: Chapter
+    function isValidChapter(data, userId, manuscriptId) {
+      return data.userId is string && data.userId == userId &&
+             data.manuscriptId is string && data.manuscriptId == manuscriptId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() <= 200000 &&
+             data.orderIndex is int && data.orderIndex >= 0 && data.orderIndex <= 1000 &&
+             data.wordCount is int && data.wordCount >= 0 && data.wordCount <= 200000 &&
+             isValidTimestamp(data.createdAt) &&
+             isValidTimestamp(data.updatedAt);
+    }
+
+    // Validation blueprint: Revision
+    function isValidRevision(data, userId, manuscriptId) {
+      return data.userId is string && data.userId == userId &&
+             data.manuscriptId is string && data.manuscriptId == manuscriptId &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 200 &&
+             data.content is string && data.content.size() <= 300000 &&
+             data.summary is string && data.summary.size() <= 300 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    // Validation blueprint: DictionaryWord
+    function isValidDictionaryWord(data, userId) {
+      return data.userId is string && data.userId == userId &&
+             data.word is string && data.word.size() >= 1 && data.word.size() <= 100 &&
+             data.category is string && data.category in ['REGIONAL', 'POETIC', 'CHARACTER', 'SADHU', 'CUSTOM'] &&
+             data.note is string && data.note.size() <= 300 &&
+             isValidTimestamp(data.createdAt);
+    }
+
+    match /users/{userId} {
+      // User manuscripts collection
+      match /manuscripts/{manuscriptId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(manuscriptId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(manuscriptId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'title', 'content', 'originalContent',
+                           'category', 'writingStyle', 'preferredMeter', 'expectedMatra',
+                           'wordCount', 'charCount', 'paragraphCount', 'pinned',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'title', 'content', 'originalContent',
+                           'category', 'writingStyle', 'preferredMeter', 'expectedMatra',
+                           'wordCount', 'charCount', 'paragraphCount', 'pinned',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidManuscript(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(manuscriptId) &&
+                         isValidManuscript(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         (
+                           // Action: Edit content, metadata, or pin status
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'title', 'content', 'originalContent',
+                             'category', 'writingStyle', 'preferredMeter', 'expectedMatra',
+                             'wordCount', 'charCount', 'paragraphCount', 'pinned',
+                             'updatedAt'
+                           ])
+                         );
+
+        allow delete: if isOwner(userId) && isValidId(manuscriptId);
+
+        // Chapters subcollection
+        match /chapters/{chapterId} {
+          allow list: if isOwner(userId) && isValidId(manuscriptId);
+          allow get: if isOwner(userId) && isValidId(manuscriptId) && isValidId(chapterId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(manuscriptId) &&
+                           isValidId(chapterId) &&
+                           incoming().keys().hasAll([
+                             'userId', 'manuscriptId', 'title', 'content',
+                             'orderIndex', 'wordCount', 'createdAt', 'updatedAt'
+                           ]) &&
+                           incoming().keys().hasOnly([
+                             'userId', 'manuscriptId', 'title', 'content',
+                             'orderIndex', 'wordCount', 'createdAt', 'updatedAt'
+                           ]) &&
+                           isValidChapter(incoming(), userId, manuscriptId) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/manuscripts/$(manuscriptId));
+
+          allow update: if isOwner(userId) &&
+                           isValidId(manuscriptId) &&
+                           isValidId(chapterId) &&
+                           isValidChapter(incoming(), userId, manuscriptId) &&
+                           incoming().userId == existing().userId &&
+                           incoming().manuscriptId == existing().manuscriptId &&
+                           incoming().createdAt == existing().createdAt &&
+                           incoming().diff(existing()).affectedKeys().hasOnly([
+                             'title', 'content', 'orderIndex', 'wordCount', 'updatedAt'
+                           ]);
+
+          allow delete: if isOwner(userId) && isValidId(manuscriptId) && isValidId(chapterId);
+        }
+
+        // Revisions subcollection (immutable snapshots)
+        match /revisions/{revisionId} {
+          allow list: if isOwner(userId) && isValidId(manuscriptId);
+          allow get: if isOwner(userId) && isValidId(manuscriptId) && isValidId(revisionId);
+
+          allow create: if isOwner(userId) &&
+                           isValidId(manuscriptId) &&
+                           isValidId(revisionId) &&
+                           incoming().keys().hasAll([
+                             'userId', 'manuscriptId', 'title', 'content', 'summary', 'createdAt'
+                           ]) &&
+                           incoming().keys().hasOnly([
+                             'userId', 'manuscriptId', 'title', 'content', 'summary', 'createdAt'
+                           ]) &&
+                           isValidRevision(incoming(), userId, manuscriptId) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/manuscripts/$(manuscriptId));
+
+          allow update: if false;
+          allow delete: if isOwner(userId) && isValidId(manuscriptId) && isValidId(revisionId);
+        }
+      }
+
+      // User custom Bengali dictionary
+      match /dictionary/{wordId} {
+        allow list: if isOwner(userId);
+        allow get: if isOwner(userId) && isValidId(wordId);
+
+        allow create: if isOwner(userId) &&
+                         isValidId(wordId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'word', 'category', 'note', 'createdAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'word', 'category', 'note', 'createdAt'
+                         ]) &&
+                         isValidDictionaryWord(incoming(), userId);
+
+        allow update: if isOwner(userId) &&
+                         isValidId(wordId) &&
+                         isValidDictionaryWord(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'word', 'category', 'note'
+                         ]);
+
+        allow delete: if isOwner(userId) && isValidId(wordId);
+      }
+    }
+  }
+}

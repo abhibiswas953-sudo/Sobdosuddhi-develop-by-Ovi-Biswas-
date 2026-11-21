@@ -1,0 +1,6 @@
+{
+  "name": "Sobdosuddhi.1.0",
+  "description": "AI-powered Bengali Writing, Proofreading and Literary Editing Assistant. Developed by Ovi Biswas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

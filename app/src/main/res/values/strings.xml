@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Sobdosuddhi.1.0</string>
+    <string name="developer_credit">Developed by Ovi Biswas</string>
+    <string name="app_tagline">বাংলা সাহিত্য, বানান ও ছন্দ সম্পাদনার সহায়ক</string>
+    <string name="app_description">AI-powered Bengali Writing and Manuscript Proofreading Assistant.</string>
+    <string name="sign_in_with_google">Google দিয়ে সাইন ইন করুন</string>
+    <string name="offline_mode_banner">অফলাইন মোড সক্রিয় — স্থানীয় বানান ও ছন্দ পরীক্ষা চালু আছে</string>
+</resources>

@@ -1,0 +1,233 @@
+{
+  "entities": {
+    "Manuscript": {
+      "title": "Manuscript",
+      "description": "A Bengali literary manuscript (poem, story, novel, or general writing) authored by a user.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the manuscript (1-200 characters)."
+        },
+        "content": {
+          "type": "string",
+          "description": "Current edited Unicode Bengali manuscript content."
+        },
+        "originalContent": {
+          "type": "string",
+          "description": "Baseline original content for before/after comparison."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["GENERAL", "POETRY", "STORY", "NOVEL", "MANUSCRIPT"],
+          "description": "Literary form of the manuscript."
+        },
+        "writingStyle": {
+          "type": "string",
+          "enum": ["CHOLITO", "SADHU", "POETIC"],
+          "description": "Preferred Bengali literary register."
+        },
+        "preferredMeter": {
+          "type": "string",
+          "enum": ["AUTO", "AKSHARBRITTO", "MATRABRITTO", "SWARABRITTO"],
+          "description": "Preferred Bengali poetic meter for prosody scanning."
+        },
+        "expectedMatra": {
+          "type": "integer",
+          "description": "Target matra count per poetic line (0 means automatic)."
+        },
+        "wordCount": {
+          "type": "integer",
+          "description": "Cached word count."
+        },
+        "charCount": {
+          "type": "integer",
+          "description": "Cached character count."
+        },
+        "paragraphCount": {
+          "type": "integer",
+          "description": "Cached paragraph count."
+        },
+        "pinned": {
+          "type": "boolean",
+          "description": "Whether the manuscript is pinned in Saved Projects."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modification timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "title",
+        "content",
+        "originalContent",
+        "category",
+        "writingStyle",
+        "preferredMeter",
+        "expectedMatra",
+        "wordCount",
+        "charCount",
+        "paragraphCount",
+        "pinned",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Chapter": {
+      "title": "Chapter",
+      "description": "An individual chapter inside a multi-chapter story, novel, or manuscript.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "manuscriptId": {
+          "type": "string",
+          "description": "Parent manuscript document ID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Chapter title."
+        },
+        "content": {
+          "type": "string",
+          "description": "Chapter Bengali Unicode text."
+        },
+        "orderIndex": {
+          "type": "integer",
+          "description": "Zero-based display order of the chapter."
+        },
+        "wordCount": {
+          "type": "integer",
+          "description": "Chapter word count."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp set via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last modification timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "manuscriptId",
+        "title",
+        "content",
+        "orderIndex",
+        "wordCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "Revision": {
+      "title": "Revision",
+      "description": "Immutable editing history snapshot of a manuscript for version restoration.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "manuscriptId": {
+          "type": "string",
+          "description": "Parent manuscript document ID."
+        },
+        "title": {
+          "type": "string",
+          "description": "Manuscript title at snapshot time."
+        },
+        "content": {
+          "type": "string",
+          "description": "Manuscript content at snapshot time."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short description of the revision."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Snapshot timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "manuscriptId",
+        "title",
+        "content",
+        "summary",
+        "createdAt"
+      ]
+    },
+    "DictionaryWord": {
+      "title": "DictionaryWord",
+      "description": "User-defined Bengali custom dictionary entry protected from false spell-check flags.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated owner UID."
+        },
+        "word": {
+          "type": "string",
+          "description": "Protected Bengali word or phrase."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["REGIONAL", "POETIC", "CHARACTER", "SADHU", "CUSTOM"],
+          "description": "Classification of the protected word."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional author note or usage guidance."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation timestamp set via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "word",
+        "category",
+        "note",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/manuscripts/{manuscriptId}": {
+      "schema": { "$ref": "#/entities/Manuscript" },
+      "description": "Per-user private Bengali literary manuscripts."
+    },
+    "/users/{userId}/manuscripts/{manuscriptId}/chapters/{chapterId}": {
+      "schema": { "$ref": "#/entities/Chapter" },
+      "description": "Ordered chapters belonging to a user's manuscript."
+    },
+    "/users/{userId}/manuscripts/{manuscriptId}/revisions/{revisionId}": {
+      "schema": { "$ref": "#/entities/Revision" },
+      "description": "Version history snapshots for restoring earlier manuscript drafts."
+    },
+    "/users/{userId}/dictionary/{wordId}": {
+      "schema": { "$ref": "#/entities/DictionaryWord" },
+      "description": "Per-user custom Bengali literary and regional dictionary entries."
+    }
+  }
+}
